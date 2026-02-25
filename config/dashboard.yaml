@@ -1,0 +1,216 @@
+# ============================================================
+# PerfMon - Organic System Monitor
+# YAML-driven dashboard configuration
+# Edit this file or use GUI drag & drop to customize layout
+# ============================================================
+
+meta:
+  title: "PerfMon"
+  subtitle: "Organic System Monitor"
+  refresh_ms: 1500
+  theme: organic
+
+# Collector settings (maps to housekeeper collectors)
+collectors:
+  cpu:
+    enabled: true
+    per_core: true
+  memory:
+    enabled: true
+  swap:
+    enabled: true
+  disk:
+    enabled: true
+  network:
+    enabled: true
+    show_virtual: false
+  gpu:
+    enabled: true
+    auto_detect: true
+  temperature:
+    enabled: true
+    unit: C
+  process:
+    enabled: true
+    top_n: 10
+  kernel:
+    enabled: true
+  pcie:
+    enabled: true
+  conntrack:
+    enabled: true
+
+# Dashboard grid layout (12 columns)
+# Each widget: { id, type, label, col, row, w, h }
+layout:
+  - id: kernel-info
+    type: kernel
+    label: "System"
+    col: 1
+    row: 1
+    w: 12
+    h: 1
+
+  - id: cpu-total
+    type: cpu_summary
+    label: "CPU"
+    col: 1
+    row: 2
+    w: 6
+    h: 2
+
+  - id: memory-usage
+    type: memory
+    label: "Memory"
+    col: 7
+    row: 2
+    w: 3
+    h: 2
+
+  - id: swap-usage
+    type: swap
+    label: "Swap"
+    col: 10
+    row: 2
+    w: 3
+    h: 2
+
+  - id: cpu-cores
+    type: cpu_cores
+    label: "CPU Cores"
+    col: 1
+    row: 4
+    w: 6
+    h: 3
+
+  - id: gpu-panel
+    type: gpu
+    label: "GPU"
+    col: 7
+    row: 4
+    w: 6
+    h: 3
+
+  - id: disk-io
+    type: disk
+    label: "Disk I/O"
+    col: 1
+    row: 7
+    w: 6
+    h: 2
+
+  - id: network-io
+    type: network
+    label: "Network"
+    col: 7
+    row: 7
+    w: 6
+    h: 2
+
+  - id: temperature-panel
+    type: temperature
+    label: "Temperature"
+    col: 1
+    row: 9
+    w: 4
+    h: 3
+
+  - id: process-list
+    type: process
+    label: "Top Processes"
+    col: 5
+    row: 9
+    w: 8
+    h: 3
+
+  - id: pcie-panel
+    type: pcie
+    label: "PCIe Devices"
+    col: 1
+    row: 12
+    w: 6
+    h: 2
+
+  - id: conntrack-panel
+    type: conntrack
+    label: "Connections"
+    col: 7
+    row: 12
+    w: 6
+    h: 2
+
+  - id: nfs-panel
+    type: nfs
+    label: "NAS Storage"
+    col: 1
+    row: 14
+    w: 6
+    h: 2
+
+# Widget palette for drag & drop sidebar
+palette:
+  - type: cpu_summary
+    label: "CPU Summary"
+    icon: "\u2699"
+    default_w: 6
+    default_h: 2
+  - type: cpu_cores
+    label: "CPU Cores"
+    icon: "\u25A3"
+    default_w: 6
+    default_h: 3
+  - type: memory
+    label: "Memory"
+    icon: "\u2587"
+    default_w: 3
+    default_h: 2
+  - type: swap
+    label: "Swap"
+    icon: "\u21C5"
+    default_w: 3
+    default_h: 2
+  - type: gpu
+    label: "GPU"
+    icon: "\u25B2"
+    default_w: 6
+    default_h: 3
+  - type: disk
+    label: "Disk I/O"
+    icon: "\u25CF"
+    default_w: 6
+    default_h: 2
+  - type: network
+    label: "Network"
+    icon: "\u21CC"
+    default_w: 6
+    default_h: 2
+  - type: temperature
+    label: "Temperature"
+    icon: "\u2668"
+    default_w: 4
+    default_h: 3
+  - type: process
+    label: "Processes"
+    icon: "\u2630"
+    default_w: 8
+    default_h: 3
+  - type: kernel
+    label: "System Info"
+    icon: "\u24D8"
+    default_w: 12
+    default_h: 1
+  - type: pcie
+    label: "PCIe"
+    icon: "\u26A1"
+    default_w: 12
+    default_h: 2
+  - type: conntrack
+    label: "Connections"
+    icon: "\u2194"
+    default_w: 6
+    default_h: 2
+  - type: nfs
+    label: "NAS Storage"
+    icon: "\u2601"
+    default_w: 6
+    default_h: 2

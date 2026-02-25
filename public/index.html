@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PerfMon - Organic System Monitor</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Titlebar -->
+    <header id="titlebar">
+      <div class="brand">
+        <div class="logo">P</div>
+        <h1>PerfMon <span>Organic System Monitor</span></h1>
+      </div>
+      <div class="controls">
+        <div class="status-dot" id="status-dot" title="Collecting..."></div>
+        <button class="btn" id="btn-edit" onclick="toggleEditMode()">Edit</button>
+        <button class="btn btn-save" id="btn-save" onclick="saveLayout()" style="display:none">Save</button>
+      </div>
+    </header>
+
+    <!-- Main area -->
+    <div id="main-area">
+      <!-- Sidebar (widget palette, shown in edit mode) -->
+      <aside id="sidebar">
+        <div class="sidebar-title">Widget Palette</div>
+        <div id="palette-list"></div>
+      </aside>
+
+      <!-- Dashboard grid -->
+      <main id="dashboard"></main>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="js/engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
