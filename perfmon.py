@@ -38,12 +38,19 @@ from housekeeper.collectors.nfs import NfsMountCollector
 
 # Optional collectors (lazy import)
 GpuCollector = None
+AppleGpuCollector = None
 PcieCollector = None
 ConntrackCollector = None
 
 try:
     from housekeeper.collectors.gpu import GpuCollector as _GC
     GpuCollector = _GC
+except ImportError:
+    pass
+
+try:
+    from housekeeper.collectors.apple_gpu import AppleGpuCollector as _AGC
+    AppleGpuCollector = _AGC
 except ImportError:
     pass
 
@@ -125,6 +132,12 @@ class CollectorEngine:
             g = GpuCollector()
             if g.available():
                 self.gpu = g
+
+        self.apple_gpu = None
+        if AppleGpuCollector and coll_cfg.get("gpu", {}).get("enabled", True):
+            ag = AppleGpuCollector()
+            if ag.available():
+                self.apple_gpu = ag
 
         self.pcie = None
         if PcieCollector and coll_cfg.get("pcie", {}).get("enabled", False):
@@ -263,9 +276,12 @@ class CollectorEngine:
         # ── Phase 2: Heavy collectors (parallel via ThreadPool) ──
         futures = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
-            # GPU
+            # GPU (NVIDIA)
             if self.gpu:
                 futures["gpu"] = (time.monotonic(), pool.submit(self.gpu.collect))
+            # Apple GPU (Metal)
+            if self.apple_gpu:
+                futures["apple_gpu"] = (time.monotonic(), pool.submit(self.apple_gpu.collect))
             # Temperature
             futures["temperature"] = (time.monotonic(), pool.submit(self.temperature.collect))
             # Process
@@ -305,6 +321,27 @@ class CollectorEngine:
                     "fan": round(g.fan_speed_pct),
                     "enc": round(g.encoder_util_pct, 1),
                     "dec": round(g.decoder_util_pct, 1),
+                }
+                for g in data
+            ])
+        elif name == "apple_gpu":
+            self.kvs.put("gpu", [
+                {
+                    "index": g.index, "name": g.short_name,
+                    "util": round(g.gpu_util_pct, 1),
+                    "mem_used": round(g.mem_used_mib),
+                    "mem_total": round(g.mem_alloc_mib),
+                    "mem_pct": round(g.mem_used_pct, 1),
+                    "temp": 0,
+                    "power": 0,
+                    "power_limit": 0,
+                    "fan": 0,
+                    "enc": 0,
+                    "dec": 0,
+                    "renderer": round(g.renderer_util_pct, 1),
+                    "tiler": round(g.tiler_util_pct, 1),
+                    "cores": g.gpu_core_count,
+                    "metal": g.metal_family,
                 }
                 for g in data
             ])

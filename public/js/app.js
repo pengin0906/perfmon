@@ -178,6 +178,25 @@ function _quickHash(obj) {
   return JSON.stringify(obj);
 }
 
+// --- Auto-hide: metric key mapping per widget type ---
+const _widgetMetricKey = {
+  kernel: 'kernel', cpu_summary: 'cpu', cpu_cores: 'cpu',
+  memory: 'memory', swap: 'swap', gpu: 'gpu', disk: 'disk',
+  network: 'network', temperature: 'temperature', process: 'process',
+  pcie: 'pcie', conntrack: 'conntrack', nfs: 'nfs',
+};
+
+function _hasData(type, metrics) {
+  const key = _widgetMetricKey[type];
+  if (!key) return true;  // unknown widget types always shown
+  const d = metrics[key];
+  if (d == null) return false;
+  if (Array.isArray(d) && d.length === 0) return false;
+  // swap: hide if no swap configured
+  if (key === 'swap' && d.total_kb === 0) return false;
+  return true;
+}
+
 function updateWidgets() {
   // Reset SVG ID counter each render cycle to keep IDs deterministic
   _svgIdSeq = 0;
@@ -186,7 +205,15 @@ function updateWidgets() {
   _prevMetricsHash = hash;
   if (!changed) return;  // skip render if data unchanged
   for (const w of layout) {
-    const content = _getWidgetContent(w.id);
+    const el = document.getElementById('widget-' + w.id);
+    if (!el) continue;
+    // Auto-hide widgets with no data (unless in edit mode)
+    const has = _hasData(w.type, latestMetrics);
+    if (!editMode) {
+      el.style.display = has ? '' : 'none';
+    }
+    if (!has) continue;
+    const content = el.querySelector('.widget-content');
     if (!content) continue;
     const t0 = perfStart('widget_' + w.type);
     content.innerHTML = renderWidget(w, latestMetrics, latestSparklines);
@@ -543,56 +570,71 @@ function drillGPU(m) {
   const pcieDevs = m.pcie || [];
   let html = '';
   for (const g of gpus) {
-    const tempColor = g.temp >= 80 ? 'var(--temp)' : g.temp >= 60 ? 'var(--disk)' : 'var(--cpu)';
-    // Match PCIe device for this GPU
-    const pcie = pcieDevs.find(p => p.type === 'display' || (p.name && p.name.toLowerCase().includes('nvidia')));
-    const pcieIdx = pcieDevs.filter(p => p.type === 'display' || (p.name && p.name.toLowerCase().includes('nvidia')));
-    const gpuPcie = pcieIdx[g.index] || pcie || null;
-    let pcieHtml = '';
-    if (gpuPcie) {
-      const maxBw = gpuPcie.max_bw_bps || 1;
-      const utilPct = ((gpuPcie.io_read_bps + gpuPcie.io_write_bps) / maxBw * 100).toFixed(2);
-      // Autoscale for GPU PCIe detail
-      const gpuPeakBps = Math.max(gpuPcie.io_read_bps, gpuPcie.io_write_bps, 1);
-      const gpuAutoMax = niceScale(gpuPeakBps);
-      const rxPct = Math.min(gpuPcie.io_read_bps / gpuAutoMax * 100, 100);
-      const txPct = Math.min(gpuPcie.io_write_bps / gpuAutoMax * 100, 100);
-      pcieHtml = `
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <span style="font-size:11px;font-weight:600;color:var(--text-dim)">PCIe ${gpuPcie.gen} x${gpuPcie.width}</span>
-            <span style="font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.05);color:var(--text-dim)">${fmtBytes(maxBw)}/s max · util: ${utilPct}%</span>
-            <span style="font-size:8px;color:var(--text-dim)">scale: ${fmtBytes(gpuAutoMax)}/s</span>
-          </div>
-          <div style="display:flex;gap:10px;justify-content:center">
-            ${gaugeSVG(txPct, 100, 'var(--disk)', 72, 'TX', '%')}
-            ${gaugeSVG(rxPct, 100, 'var(--net)', 72, 'RX', '%')}
-          </div>
-          <div style="display:flex;gap:16px;justify-content:center;margin-top:4px;font-size:10px">
-            <span style="color:var(--disk)">TX ${fmtBps(gpuPcie.io_write_bps)}</span>
-            <span style="color:var(--net)">RX ${fmtBps(gpuPcie.io_read_bps)}</span>
-          </div>
-        </div>`;
+    const isApple = g.metal !== undefined && g.metal !== '';
+
+    if (isApple) {
+      html += drillCard(`${g.name}`, `
+        <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:12px">${g.metal} · ${g.cores} cores</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:16px">
+          ${gaugeSVG(g.util, 100, 'var(--gpu)', 100, 'GPU', '%')}
+          ${gaugeSVG(g.renderer || 0, 100, 'var(--cpu)', 100, 'Renderer', '%')}
+          ${gaugeSVG(g.tiler || 0, 100, 'var(--disk)', 100, 'Tiler', '%')}
+          ${gaugeSVG(g.mem_pct, 100, 'var(--mem)', 100, 'Memory', '%')}
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;font-size:11px;color:var(--text-dim)">
+          <span>Mem: ${g.mem_used} / ${g.mem_total} MiB</span>
+        </div>
+      `);
+    } else {
+      const tempColor = g.temp >= 80 ? 'var(--temp)' : g.temp >= 60 ? 'var(--disk)' : 'var(--cpu)';
+      const pcie = pcieDevs.find(p => p.type === 'display' || (p.name && p.name.toLowerCase().includes('nvidia')));
+      const pcieIdx = pcieDevs.filter(p => p.type === 'display' || (p.name && p.name.toLowerCase().includes('nvidia')));
+      const gpuPcie = pcieIdx[g.index] || pcie || null;
+      let pcieHtml = '';
+      if (gpuPcie) {
+        const maxBw = gpuPcie.max_bw_bps || 1;
+        const utilPct = ((gpuPcie.io_read_bps + gpuPcie.io_write_bps) / maxBw * 100).toFixed(2);
+        const gpuPeakBps = Math.max(gpuPcie.io_read_bps, gpuPcie.io_write_bps, 1);
+        const gpuAutoMax = niceScale(gpuPeakBps);
+        const rxPct = Math.min(gpuPcie.io_read_bps / gpuAutoMax * 100, 100);
+        const txPct = Math.min(gpuPcie.io_write_bps / gpuAutoMax * 100, 100);
+        pcieHtml = `
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--text-dim)">PCIe ${gpuPcie.gen} x${gpuPcie.width}</span>
+              <span style="font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.05);color:var(--text-dim)">${fmtBytes(maxBw)}/s max · util: ${utilPct}%</span>
+              <span style="font-size:8px;color:var(--text-dim)">scale: ${fmtBytes(gpuAutoMax)}/s</span>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center">
+              ${gaugeSVG(txPct, 100, 'var(--disk)', 72, 'TX', '%')}
+              ${gaugeSVG(rxPct, 100, 'var(--net)', 72, 'RX', '%')}
+            </div>
+            <div style="display:flex;gap:16px;justify-content:center;margin-top:4px;font-size:10px">
+              <span style="color:var(--disk)">TX ${fmtBps(gpuPcie.io_write_bps)}</span>
+              <span style="color:var(--net)">RX ${fmtBps(gpuPcie.io_read_bps)}</span>
+            </div>
+          </div>`;
+      }
+      html += drillCard(`GPU ${g.index}: ${g.name}`, `
+        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:16px">
+          ${gaugeSVG(g.util, 100, 'var(--gpu)', 100, 'Utilization', '%')}
+          ${gaugeSVG(g.mem_pct, 100, 'var(--mem)', 100, 'VRAM', '%')}
+          ${gaugeSVG(g.temp, 110, tempColor, 100, 'Temperature', '°C')}
+          ${meterSVG(g.power, g.power_limit || 350, 'var(--disk)', 110, 'Power', 'W')}
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;font-size:11px;color:var(--text-dim)">
+          <span>VRAM: ${g.mem_used}/${g.mem_total} MiB</span>
+          <span>|</span>
+          <span>Power: ${g.power}W / ${g.power_limit}W</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:16px">
+          ${g.fan > 0 ? gaugeSVG(g.fan, 100, 'var(--net)', 72, 'Fan', '%') : ''}
+          ${g.enc > 0 ? gaugeSVG(g.enc, 100, 'var(--kern)', 72, 'Encoder', '%') : ''}
+          ${g.dec > 0 ? gaugeSVG(g.dec, 100, 'var(--kern)', 72, 'Decoder', '%') : ''}
+        </div>
+        ${pcieHtml}
+      `);
     }
-    html += drillCard(`GPU ${g.index}: ${g.name}`, `
-      <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:16px">
-        ${gaugeSVG(g.util, 100, 'var(--gpu)', 100, 'Utilization', '%')}
-        ${gaugeSVG(g.mem_pct, 100, 'var(--mem)', 100, 'VRAM', '%')}
-        ${gaugeSVG(g.temp, 110, tempColor, 100, 'Temperature', '°C')}
-        ${meterSVG(g.power, g.power_limit || 350, 'var(--disk)', 110, 'Power', 'W')}
-      </div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;font-size:11px;color:var(--text-dim)">
-        <span>VRAM: ${g.mem_used}/${g.mem_total} MiB</span>
-        <span>|</span>
-        <span>Power: ${g.power}W / ${g.power_limit}W</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:16px">
-        ${g.fan > 0 ? gaugeSVG(g.fan, 100, 'var(--net)', 72, 'Fan', '%') : ''}
-        ${g.enc > 0 ? gaugeSVG(g.enc, 100, 'var(--kern)', 72, 'Encoder', '%') : ''}
-        ${g.dec > 0 ? gaugeSVG(g.dec, 100, 'var(--kern)', 72, 'Decoder', '%') : ''}
-      </div>
-      ${pcieHtml}
-    `);
   }
   return html;
 }
