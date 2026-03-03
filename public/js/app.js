@@ -620,6 +620,7 @@ function drillGPU(m) {
           ${gaugeSVG(g.util, 100, 'var(--gpu)', 100, 'Utilization', '%')}
           ${gaugeSVG(g.mem_pct, 100, 'var(--mem)', 100, 'VRAM', '%')}
           ${gaugeSVG(g.temp, 110, tempColor, 100, 'Temperature', '°C')}
+          ${g.temp_mem_junction > 0 ? gaugeSVG(g.temp_mem_junction, 110, g.temp_mem_junction >= 95 ? 'var(--temp)' : g.temp_mem_junction >= 80 ? 'var(--disk)' : 'var(--cpu)', 100, 'Mem Junction', '°C') : ''}
           ${meterSVG(g.power, g.power_limit || 350, 'var(--disk)', 110, 'Power', 'W')}
         </div>
         <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;font-size:11px;color:var(--text-dim)">

@@ -23,9 +23,10 @@ from functools import partial
 from pathlib import Path
 
 import yaml
+import socket
 
 # Add housekeeper to path
-sys.path.insert(0, os.path.expanduser("~/housekeeper"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "housekeeper"))
 
 from housekeeper.collectors.cpu import CpuCollector
 from housekeeper.collectors.disk import DiskCollector
@@ -316,6 +317,7 @@ class CollectorEngine:
                     "mem_total": round(g.mem_total_mib),
                     "mem_pct": round(g.mem_used_pct, 1),
                     "temp": round(g.temperature_c),
+                    "temp_mem_junction": round(g.temp_memory_junction_c),
                     "power": round(g.power_draw_w, 1),
                     "power_limit": round(g.power_limit_w, 1),
                     "fan": round(g.fan_speed_pct),
@@ -501,7 +503,7 @@ def main():
     api = PerfMonApi(kvs, str(config_path), config)
 
     window = webview.create_window(
-        f"{title} - {subtitle}",
+        f"{title} - {socket.gethostname()} - {subtitle}",
         url=url,
         js_api=api,
         width=1440,

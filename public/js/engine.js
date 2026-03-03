@@ -633,6 +633,7 @@ registerWidget('gpu', (w, m) => {
             ${gaugeSVG(g.util, 100, 'var(--gpu)', 68, 'Util', '%')}
             ${gaugeSVG(g.mem_pct, 100, 'var(--mem)', 68, 'VRAM', '%')}
             ${gaugeSVG(g.temp, 110, g.temp >= 80 ? 'var(--temp)' : g.temp >= 60 ? 'var(--disk)' : 'var(--cpu)', 68, 'Temp', '°C')}
+            ${g.temp_mem_junction > 0 ? gaugeSVG(g.temp_mem_junction, 110, g.temp_mem_junction >= 95 ? 'var(--temp)' : g.temp_mem_junction >= 80 ? 'var(--disk)' : 'var(--cpu)', 68, 'MemJunct', '°C') : ''}
             ${gaugeSVG(g.power, g.power_limit || 350, null, 68, 'Power', 'W')}
             ${g.fan > 0 ? gaugeSVG(g.fan, 100, 'var(--net)', 56, 'Fan', '%') : ''}
             ${g.enc > 0 ? gaugeSVG(g.enc, 100, 'var(--kern)', 56, 'Enc', '%') : ''}
@@ -665,6 +666,7 @@ registerWidget('gpu', (w, m) => {
             ${meterSVG(g.util, 100, 'var(--gpu)', 80, 'Util', '%')}
             ${meterSVG(g.mem_pct, 100, 'var(--mem)', 80, 'VRAM', '%')}
             ${meterSVG(g.temp, 110, g.temp >= 80 ? 'var(--temp)' : g.temp >= 60 ? 'var(--disk)' : 'var(--cpu)', 80, 'Temp', '°C')}
+            ${g.temp_mem_junction > 0 ? meterSVG(g.temp_mem_junction, 110, g.temp_mem_junction >= 95 ? 'var(--temp)' : g.temp_mem_junction >= 80 ? 'var(--disk)' : 'var(--cpu)', 80, 'MemJunct', '°C') : ''}
             ${meterSVG(g.power, g.power_limit || 350, null, 80, 'Power', 'W')}
           </div>
           ${g.fan > 0 ? `<div style="margin-top:4px;font-size:10px;color:var(--text-dim)">Fan: ${g.fan}%  |  Enc: ${g.enc}%  Dec: ${g.dec}%</div>` : ''}
@@ -693,6 +695,7 @@ registerWidget('gpu', (w, m) => {
             ${numericHTML(g.util, '%', 'var(--gpu)', 'Util')}
             ${numericHTML(g.mem_pct, '%', 'var(--mem)', 'VRAM')}
             ${numericHTML(g.temp, '°C', g.temp >= 80 ? 'var(--temp)' : 'var(--cpu)', 'Temp')}
+            ${g.temp_mem_junction > 0 ? numericHTML(g.temp_mem_junction, '°C', g.temp_mem_junction >= 95 ? 'var(--temp)' : 'var(--cpu)', 'MemJunct') : ''}
             ${numericHTML(g.power, 'W', null, 'Power')}
             ${g.fan > 0 ? numericHTML(g.fan, '%', 'var(--net)', 'Fan') : ''}
           </div>
@@ -750,6 +753,10 @@ registerWidget('gpu', (w, m) => {
               <span class="gpu-stat-label">Temp</span>
               <span class="gpu-stat-val ${g.temp >= 80 ? 'c-temp' : g.temp >= 60 ? 'c-disk' : 'c-cpu'}">${g.temp}&deg;C</span>
             </div>
+            ${g.temp_mem_junction > 0 ? `<div class="gpu-stat">
+              <span class="gpu-stat-label">MemJunct</span>
+              <span class="gpu-stat-val ${g.temp_mem_junction >= 95 ? 'c-temp' : g.temp_mem_junction >= 80 ? 'c-disk' : 'c-cpu'}">${g.temp_mem_junction}&deg;C</span>
+            </div>` : ''}
             <div class="gpu-stat">
               <span class="gpu-stat-label">Power</span>
               <span class="gpu-stat-val">${g.power}W<span style="color:var(--text-dim);font-size:11px">/${g.power_limit}W</span></span>
