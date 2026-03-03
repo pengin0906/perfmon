@@ -152,6 +152,9 @@ class CollectorEngine:
         # NAS (NFS/CIFS/SMB)
         self.nfs = NfsMountCollector()
 
+        # Persistent thread pool for Phase 2 collectors
+        self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+
         # Baseline reads (diff-based collectors need 2 samples)
         self.cpu.collect()
         self.disk.collect()
@@ -274,37 +277,37 @@ class CollectorEngine:
             "version": k.kernel_version, "cpus": k.num_cpus,
         })
 
-        # ── Phase 2: Heavy collectors (parallel via ThreadPool) ──
+        # ── Phase 2: Heavy collectors (parallel via persistent ThreadPool) ──
         futures = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
-            # GPU (NVIDIA)
-            if self.gpu:
-                futures["gpu"] = (time.monotonic(), pool.submit(self.gpu.collect))
-            # Apple GPU (Metal)
-            if self.apple_gpu:
-                futures["apple_gpu"] = (time.monotonic(), pool.submit(self.apple_gpu.collect))
-            # Temperature
-            futures["temperature"] = (time.monotonic(), pool.submit(self.temperature.collect))
-            # Process
-            futures["process"] = (time.monotonic(), pool.submit(self.process.collect))
-            # PCIe
-            if self.pcie:
-                futures["pcie"] = (time.monotonic(), pool.submit(self.pcie.collect))
-            # Conntrack
-            if self.conntrack:
-                futures["conntrack"] = (time.monotonic(), pool.submit(self.conntrack.collect))
-            # NAS (NFS/CIFS/SMB)
-            futures["nfs"] = (time.monotonic(), pool.submit(self.nfs.collect))
+        pool = self._pool
+        # GPU (NVIDIA)
+        if self.gpu:
+            futures["gpu"] = (time.monotonic(), pool.submit(self.gpu.collect))
+        # Apple GPU (Metal)
+        if self.apple_gpu:
+            futures["apple_gpu"] = (time.monotonic(), pool.submit(self.apple_gpu.collect))
+        # Temperature
+        futures["temperature"] = (time.monotonic(), pool.submit(self.temperature.collect))
+        # Process
+        futures["process"] = (time.monotonic(), pool.submit(self.process.collect))
+        # PCIe
+        if self.pcie:
+            futures["pcie"] = (time.monotonic(), pool.submit(self.pcie.collect))
+        # Conntrack
+        if self.conntrack:
+            futures["conntrack"] = (time.monotonic(), pool.submit(self.conntrack.collect))
+        # NAS (NFS/CIFS/SMB)
+        futures["nfs"] = (time.monotonic(), pool.submit(self.nfs.collect))
 
-            # Wait for all and ingest into KVS
-            for name, (t_start, future) in futures.items():
-                try:
-                    result = future.result(timeout=5)
-                except Exception as e:
-                    print(f"[collector error] {name}: {e}", file=sys.stderr)
-                    continue
-                self._prof(name, t_start)
-                self._ingest(name, result)
+        # Wait for all and ingest into KVS
+        for name, (t_start, future) in futures.items():
+            try:
+                result = future.result(timeout=5)
+            except Exception as e:
+                print(f"[collector error] {name}: {e}", file=sys.stderr)
+                continue
+            self._prof(name, t_start)
+            self._ingest(name, result)
 
     def _ingest(self, name: str, data):
         """Ingest collector results into KVS."""
